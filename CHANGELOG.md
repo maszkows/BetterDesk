@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Fixed
+- **RustDesk Pro Client API login regression:** Valid `pro` accounts can authenticate through `/api/login` again and receive a token for their isolated personal address book. The web panel, server device inventory, device groups, peer keys, and every `device.*` permission remain blocked for this role. Regression tests cover Client API login, panel denial, and address-book isolation.
+
 ### Changed
 - _(none yet)_
 
