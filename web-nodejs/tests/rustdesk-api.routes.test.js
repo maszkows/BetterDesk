@@ -15,11 +15,20 @@ jest.mock('../services/database', () => ({
     saveAddressBook: jest.fn(),
     getAllDeviceGroups: jest.fn(),
     getDeviceGroupByGuid: jest.fn(),
-    getDeviceGroupMembers: jest.fn()
+    getDeviceGroupMembers: jest.fn(),
+    getDevice: jest.fn(),
+    logAction: jest.fn(),
+    updateLastLogin: jest.fn()
 }));
 
 jest.mock('../services/authService', () => ({
-    validateAccessToken: jest.fn()
+    validateAccessToken: jest.fn(),
+    authenticate: jest.fn(),
+    isAuthFailure: jest.fn(),
+    checkBruteForce: jest.fn(),
+    recordAttempt: jest.fn(),
+    generateAccessToken: jest.fn(),
+    verifyTotpCode: jest.fn()
 }));
 
 jest.mock('../services/serverBackend', () => ({
@@ -41,6 +50,13 @@ describe('RustDesk Client API routes', () => {
 
         jest.clearAllMocks();
         authService.validateAccessToken.mockResolvedValue({ id: 2, username: 'viewer1', role: 'viewer' });
+        authService.authenticate.mockResolvedValue(null);
+        authService.isAuthFailure.mockReturnValue(false);
+        authService.checkBruteForce.mockResolvedValue({ blocked: false });
+        authService.generateAccessToken.mockResolvedValue('test-access-token');
+        db.getDevice.mockResolvedValue(null);
+        db.logAction.mockResolvedValue(undefined);
+        db.updateLastLogin.mockResolvedValue(undefined);
         db.getAllDevices.mockResolvedValue([
             { id: 'OWNED1', hostname: 'Owned', online: true, tags: 'Allowed' },
             { id: 'OTHER1', hostname: 'Other', online: true, tags: 'Private' }
@@ -62,6 +78,45 @@ describe('RustDesk Client API routes', () => {
                 return { data: JSON.stringify({ peers: [{ id: 'OWNED1' }] }) };
             }
             return null;
+        });
+    });
+
+    describe('POST /api/login', () => {
+        it('issues a client token for a valid Pro account', async () => {
+            authService.authenticate.mockResolvedValue({
+                id: 7,
+                username: 'pro-user',
+                role: 'pro',
+                totpRequired: false
+            });
+            authService.generateAccessToken.mockResolvedValue('pro-access-token');
+
+            const res = await request(app)
+                .post('/api/login')
+                .send({
+                    username: 'pro-user',
+                    password: 'correct',
+                    type: 'account',
+                    id: '123456789',
+                    uuid: 'pro-device-uuid'
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body).toMatchObject({
+                type: 'access_token',
+                access_token: 'pro-access-token',
+                user: {
+                    name: 'pro-user',
+                    is_admin: false
+                }
+            });
+            expect(authService.generateAccessToken).toHaveBeenCalledWith(
+                7,
+                '123456789',
+                'pro-device-uuid',
+                expect.any(String)
+            );
+            expect(db.updateLastLogin).toHaveBeenCalledWith(7);
         });
     });
 
@@ -304,6 +359,25 @@ describe('RustDesk Client API routes', () => {
     });
 
     describe('GET /api/ab', () => {
+        it('returns only the Pro account personal address book', async () => {
+            authService.validateAccessToken.mockResolvedValue({ id: 7, username: 'pro-user', role: 'pro' });
+            const personalData = JSON.stringify({
+                peers: [{ id: 'PRIVATE1', alias: 'My PC' }],
+                tags: ['Personal']
+            });
+            db.getAddressBook.mockImplementation(async (_userId, abType) => (
+                abType === 'legacy' ? { data: personalData } : null
+            ));
+
+            const res = await request(app)
+                .get('/api/ab')
+                .set('Authorization', 'Bearer pro-token');
+
+            expect(res.status).toBe(200);
+            expect(JSON.parse(res.body.data)).toEqual(JSON.parse(personalData));
+            expect(serverBackend.getAllDevices).not.toHaveBeenCalled();
+        });
+
         it('does not auto-add console inventory to editable user address books', async () => {
             authService.validateAccessToken.mockResolvedValue({ id: 3, username: 'operator1', role: 'operator' });
             db.getAddressBook.mockImplementation(async (_userId, abType) => {

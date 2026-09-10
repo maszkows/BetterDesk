@@ -150,6 +150,22 @@ describe('Auth Routes', () => {
             expect(res.body.user.username).toBe('admin');
         });
 
+        it('should keep Pro accounts blocked from the web panel', async () => {
+            authService.authenticate.mockResolvedValue({
+                id: 7,
+                username: 'pro-user',
+                role: 'pro'
+            });
+
+            const res = await request(app)
+                .post('/api/auth/login')
+                .send({ username: 'pro-user', password: 'correct' });
+
+            expect(res.status).toBe(403);
+            expect(res.body.success).toBe(false);
+            expect(res.body.error).toBe('auth.pro_only_account');
+        });
+
         it('should return totpRequired when 2FA is enabled', async () => {
             authService.authenticate.mockResolvedValue({
                 id: 1,

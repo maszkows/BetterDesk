@@ -22,6 +22,22 @@ const authService = require('../services/authService');
 const db = require('../services/database');
 
 describe('authService provider helpers', () => {
+    it('returns an authenticated identity for a Pro client API account', () => {
+        expect(authService.authSuccessFromUser({
+            id: 7,
+            username: 'pro-user',
+            role: 'pro',
+            preferred_language: 'pl',
+            totp_enabled: 0,
+        }, null)).toEqual({
+            id: 7,
+            username: 'pro-user',
+            role: 'pro',
+            preferred_language: 'pl',
+            totpRequired: false,
+        });
+    });
+
     it('normalizeAuthProvider accepts ldap, oidc, local', () => {
         expect(authService.normalizeAuthProvider('LDAP')).toBe('ldap');
         expect(authService.normalizeAuthProvider('oidc')).toBe('oidc');

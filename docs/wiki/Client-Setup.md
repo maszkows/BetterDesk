@@ -113,7 +113,11 @@ If login shows **Token generation failed**, update to a build that includes the 
 | **Admin** | Full access, can manage via web console |
 | **Operator** | Can connect to assigned devices |
 | **Viewer** | Read-only access to device list |
-| **Pro** | API-only access (no panel login, no client login) |
+| **Pro** | Client API login for Pro feature activation and a private address book; no panel or server device inventory |
+
+Pro accounts can sign in through the RustDesk Client API, but cannot sign in to
+the web panel. Their address book is isolated: server inventory, device groups,
+peer keys, and all `device.*` permissions remain unavailable.
 
 ---
 

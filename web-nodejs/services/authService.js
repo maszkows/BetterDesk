@@ -459,9 +459,6 @@ async function provisionLocalUserFromGo(username, password, goResult, ssoStatus)
  * Build a successful authenticate() response from a local user row.
  */
 function authSuccessFromUser(user, goResult) {
-    if (user.role === 'pro') {
-        return null;
-    }
     if (user.totp_enabled) {
         return {
             id: user.id,
@@ -1352,6 +1349,8 @@ module.exports = {
     inferAuthProviderFromSSO,
     isExternalAuthProvider,
     isExternalAuthResult,
+    // Client API regression coverage: authentication must not enforce role policy.
+    authSuccessFromUser,
     // Issue #368 — exported for unit tests
     buildTotpOtpauthUrl,
     // Issue #385 — exported for unit tests
