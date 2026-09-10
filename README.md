@@ -19,6 +19,8 @@
 
 [Wiki](https://github.com/UNITRONIX/BetterDesk/wiki) · [Privacy](PRIVACY.md) · [Sponsors](SPONSORS.md) · [Changelog](CHANGELOG.md)
 
+> **Upstream project:** This repository is a fork of [UNITRONIX/BetterDesk](https://github.com/UNITRONIX/BetterDesk). All credit for the original BetterDesk project goes to its authors and contributors.
+
 <br>
 
 ### Honorary supporter
