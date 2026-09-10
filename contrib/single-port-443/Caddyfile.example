@@ -1,0 +1,39 @@
+{
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+__BETTERDESK_DOMAIN__ {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+
+	route {
+		@rustdesk_id path /ws/id*
+		reverse_proxy @rustdesk_id 127.0.0.1:21118 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			transport http {
+				versions 1.1
+				read_timeout 120s
+			}
+		}
+
+		@rustdesk_relay path /ws/relay*
+		reverse_proxy @rustdesk_relay 127.0.0.1:21119 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			transport http {
+				versions 1.1
+				read_timeout 120s
+			}
+		}
+
+		respond /healthz 200
+		reverse_proxy 127.0.0.1:5000
+	}
+}
