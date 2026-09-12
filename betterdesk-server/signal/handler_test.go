@@ -270,6 +270,9 @@ func TestProcessRegisterPkPreservesPersistedIdentityAfterRestart(t *testing.T) {
 	if persisted == nil || !bytes.Equal(persisted.PK, storedPK) || persisted.UUID != hex.EncodeToString(storedUUID) {
 		t.Fatalf("persisted identity changed after rejected RegisterPk: %+v", persisted)
 	}
+	if entry := srv.peers.Get("RESTART1"); entry != nil {
+		t.Fatalf("rejected RegisterPk left a false-online peer entry: %+v", entry)
+	}
 
 	if got := registerPkResult(srv.processRegisterPk(&pb.RegisterPk{
 		Id:   "RESTART1",

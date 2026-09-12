@@ -597,12 +597,12 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 
 	// Get or create peer entry in memory
 	entry := s.peers.Get(id)
+	newEntry := entry == nil
 	if entry == nil {
 		entry = &peer.Entry{
 			ID:      id,
 			LastReg: time.Now(),
 		}
-		s.peers.Put(entry)
 	}
 
 	// Bind the persisted device identity before processing RegisterPk. After a
@@ -649,6 +649,12 @@ func (s *Server) processRegisterPk(msg *pb.RegisterPk, addrStr string) *pb.Rende
 		}
 	}
 	s.bindTCPSessionPeer(addrStr, id)
+	if newEntry {
+		// Do not publish an unvalidated placeholder. A rejected UUID/PK from a
+		// reinstalled client must remain offline instead of appearing as a UDP
+		// peer with no usable return transport.
+		s.peers.Put(entry)
+	}
 
 	// Persist to database
 	dbPeer := &db.Peer{
