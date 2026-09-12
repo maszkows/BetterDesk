@@ -1450,8 +1450,10 @@ func (s *Server) handleRequestRelay(msg *pb.RequestRelay, raddr *net.UDPAddr) {
 // Previous behavior (sending nothing back and waiting for the target's
 // RelayResponse) caused timeouts for TCP signaling clients (e.g. logged-in users).
 //
-// initiatorHint is ConnTCP for native TCP signal or ConnWS for WebSocket Mode;
-// if the initiator is registered, their stored ConnType wins.
+// initiatorHint is ConnTCP for native TCP signal or ConnWS for WebSocket Mode.
+// It is authoritative for the initiator's relay framing. A peer may retain a
+// stale UDP registration while its current RequestRelay arrives over WSS; using
+// the stored ConnType in that case incorrectly rejects a WS-to-WS relay pair.
 func (s *Server) handleRequestRelayTCP(msg *pb.RequestRelay, raddr *net.UDPAddr, initiatorHint peer.ConnType) *pb.RendezvousMessage {
 	if raddr == nil {
 		log.Printf("[signal] RequestRelay (TCP): nil address, ignoring")
@@ -1509,9 +1511,6 @@ func (s *Server) handleRequestRelayTCP(msg *pb.RequestRelay, raddr *net.UDPAddr,
 	// framing translation (#290). Panel Web Remote (`panel-web-remote`) is
 	// exempt here; hbbr mediates BytesCodec↔WS (#397).
 	initiatorType := initiatorHint
-	if initiator := s.peers.Get(initiatorID); initiator != nil {
-		initiatorType = initiator.ConnType
-	}
 	if initiatorID != panelWebRemoteInitiatorID && initiatorID != sharedNATInitiatorID && relayTransportMismatch(initiatorType, target.ConnType) {
 		log.Printf("[signal] RequestRelay (TCP): protocol mismatch initiator=%s target=%s (%s vs %s)",
 			raddr, targetID, initiatorType, target.ConnType)

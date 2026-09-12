@@ -869,6 +869,41 @@ func TestHandleRequestRelayTCPMatchingWSAllowed(t *testing.T) {
 	}
 }
 
+func TestHandleRequestRelayTCPCurrentWSOverridesStaleUDPRegistration(t *testing.T) {
+	srv, _ := newTestSignalServer(t, config.EnrollmentModeOpen)
+	srv.localIP.Store("198.51.100.20")
+
+	srv.peers.Put(&peer.Entry{
+		ID:         "WSTARGET2",
+		IP:         "203.0.113.61:52000",
+		ConnType:   peer.ConnWS,
+		LastReg:    time.Now(),
+		StatusTier: peer.StatusOnline,
+	})
+	initiatorAddr := udpAddr("198.51.100.41", 51000)
+	srv.peers.Put(&peer.Entry{
+		ID:         "WSINIT03",
+		IP:         initiatorAddr.String(),
+		UDPAddr:    initiatorAddr,
+		ConnType:   peer.ConnUDP, // stale registration; current request is WSS
+		LastReg:    time.Now(),
+		StatusTier: peer.StatusOnline,
+	})
+
+	resp := srv.handleRequestRelayTCP(&pb.RequestRelay{
+		Id:   "WSTARGET2",
+		Uuid: "current-ws-overrides-stale-udp-uuid",
+	}, initiatorAddr, peer.ConnWS)
+
+	rr := resp.GetRelayResponse()
+	if rr == nil {
+		t.Fatalf("expected RelayResponse, got %+v", resp)
+	}
+	if rr.RefuseReason != "" {
+		t.Fatalf("current WSS request must not inherit stale UDP transport: %q", rr.RefuseReason)
+	}
+}
+
 func TestRelayTransportMismatchHelper(t *testing.T) {
 	cases := []struct {
 		a, b peer.ConnType
