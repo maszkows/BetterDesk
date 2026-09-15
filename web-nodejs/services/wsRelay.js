@@ -4,7 +4,7 @@
  * 
  * Provides two WebSocket endpoints:
  *   /ws/rendezvous - proxies to hbbs TCP (port 21116)
- *   /ws/relay      - proxies to hbbr TCP (port 21117)
+ *   /ws/web-relay  - proxies to hbbr TCP (port 21117)
  * 
  * IMPORTANT: hbbr treats loopback TCP connections as admin command interface
  * (relay_server.rs: `if !ws && ip.is_loopback()`). The relay proxy must
@@ -67,10 +67,12 @@ function initWsProxy(server, sessionMiddleware) {
     const relayWss = new WebSocket.Server({ noServer: true });
 
     // Handle upgrade requests — verify session cookie before allowing WebSocket.
-    // Paths owned: /ws/rendezvous, /ws/relay (shared upgrade router — #295).
+    // Paths owned: /ws/rendezvous, /ws/web-relay (shared upgrade router — #295).
+    // /ws/relay is reserved for native RustDesk clients and is routed directly
+    // to BetterDesk by the TLS reverse proxy in single-port deployments.
     registerUpgradeHandler(
         server,
-        (pathname) => pathname === '/ws/rendezvous' || pathname === '/ws/relay',
+        (pathname) => pathname === '/ws/rendezvous' || pathname === '/ws/web-relay',
         (request, socket, head) => {
             const url = new URL(request.url, `http://${request.headers.host}`);
             const pathname = url.pathname;
@@ -195,7 +197,7 @@ function initWsProxy(server, sessionMiddleware) {
     });
 
     console.log(`  WebSocket proxy: /ws/rendezvous -> ${hbbsHost}:${hbbsPort}`);
-    console.log(`  WebSocket proxy: /ws/relay -> ${hbbrHost}:${hbbrPort}`);
+    console.log(`  WebSocket proxy: /ws/web-relay -> ${hbbrHost}:${hbbrPort}`);
 
     return { rendezvousWss, relayWss };
 }

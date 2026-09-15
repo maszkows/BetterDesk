@@ -2,6 +2,8 @@
  * RdClient web — PunchHoleResponse / connection-params parity with Go signal rules.
  */
 const path = require('path');
+const fs = require('fs');
+const vm = require('vm');
 const protobuf = require('protobufjs');
 const {
     interpretPunchHoleResponse,
@@ -97,6 +99,43 @@ describe('RDConnectionParams', () => {
         const long = resolveConnectTimeouts({ p2p_fallback_ms: 20000 });
         expect(long.rendezvousMs).toBe(30000);
         expect(long.signalRelayMs).toBe(30000);
+    });
+});
+
+describe('RDConnection WebSocket routes', () => {
+    it('uses the dedicated browser relay route', async () => {
+        const openedUrls = [];
+        class FakeWebSocket {
+            static OPEN = 1;
+
+            constructor(url) {
+                this.url = url;
+                this.readyState = FakeWebSocket.OPEN;
+                openedUrls.push(url);
+                queueMicrotask(() => this.onopen?.());
+            }
+
+            close() {}
+            send() {}
+        }
+
+        const window = {
+            location: {
+                protocol: 'https:',
+                host: 'betterdesk.example.com',
+                search: ''
+            }
+        };
+        const source = fs.readFileSync(
+            path.join(__dirname, '../public/js/rdclient/connection.js'),
+            'utf8'
+        );
+        vm.runInNewContext(source, { window, WebSocket: FakeWebSocket, URLSearchParams, queueMicrotask });
+
+        const connection = new window.RDConnection();
+        await connection.connectRelay();
+
+        expect(openedUrls).toEqual(['wss://betterdesk.example.com/ws/web-relay']);
     });
 });
 

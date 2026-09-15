@@ -1,7 +1,7 @@
 /**
  * Security tests for WebSocket relay upgrade handler.
  * 
- * Verifies that /ws/rendezvous and /ws/relay reject unauthenticated requests
+ * Verifies that /ws/rendezvous and /ws/web-relay reject unauthenticated requests
  * and that only sessions with a valid userId are allowed to upgrade.
  * 
  * These tests cover BD-2026-003 (wsRelay session validation bypass).
@@ -125,7 +125,7 @@ describe('wsRelay — security: session validation on WS upgrade', () => {
     });
 
     // ── Test: relay path also rejected without session ────────────────────────
-    test('rejects /ws/relay upgrade without userId', async () => {
+    test('rejects /ws/web-relay upgrade without userId', async () => {
         const emptySession = (req, _res, next) => {
             req.session = {};
             next();
@@ -138,7 +138,7 @@ describe('wsRelay — security: session validation on WS upgrade', () => {
         await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
         address = server.address();
 
-        const result = await rawUpgrade(address, '/ws/relay');
+        const result = await rawUpgrade(address, '/ws/web-relay');
         expect(result.statusLine).toBe('HTTP/1.1 401 Unauthorized');
     });
 
@@ -215,7 +215,7 @@ describe('wsRelay — security: session validation on WS upgrade', () => {
     });
 
     // ── Test: non-ws-relay paths are not handled by initWsProxy ──────────────
-    test('does not intercept paths outside /ws/rendezvous and /ws/relay', () => {
+    test('does not intercept paths outside /ws/rendezvous and /ws/web-relay', () => {
         const EventEmitter = require('events');
         const { initWsProxy } = require('../services/wsRelay');
 
@@ -239,6 +239,9 @@ describe('wsRelay — security: session validation on WS upgrade', () => {
         };
 
         fakeServer.emit('upgrade', fakeRequest, fakeSocket, Buffer.alloc(0));
+
+        // Native RustDesk relay traffic is owned by BetterDesk/Caddy, not Node.
+        fakeServer.emit('upgrade', { ...fakeRequest, url: '/ws/relay' }, fakeSocket, Buffer.alloc(0));
 
         // wsRelay returns early for non-owned paths — session middleware never called
         expect(middlewareCalled).toHaveLength(0);
